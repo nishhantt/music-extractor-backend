@@ -42,16 +42,4 @@ object NetworkModule {
     fun provideSaavnService(client: OkHttpClient): SaavnService {
         return SaavnService(client)
     }
-
-    @Provides
-    @Singleton
-    fun provideYouTubeSearchService(client: OkHttpClient): com.example.musicplayer.network.YouTubeSearchService {
-        return com.example.musicplayer.network.YouTubeSearchService(client)
-    }
-
-    @Provides
-    @Singleton
-    fun provideSoundCloudService(client: OkHttpClient): com.example.musicplayer.network.SoundCloudService {
-        return com.example.musicplayer.network.SoundCloudService(client)
-    }
 }

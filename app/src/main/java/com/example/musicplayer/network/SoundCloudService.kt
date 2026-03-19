@@ -11,7 +11,8 @@ import javax.inject.Singleton
 class SoundCloudService @Inject constructor(
     private val client: OkHttpClient
 ) {
-    private val SEARCH_URL = "https://api-v2.soundcloud.com/search/tracks?q=%s&client_id=LBCcHmS96G6h0ST69X2WpC9fK5V6GvB5&limit=10"
+    private val CLIENT_ID = "LBCcHmS96G6h0ST69X2WpC9fK5V6GvB5"
+    private val SEARCH_URL = "https://api-v2.soundcloud.com/search/tracks?q=%s&client_id=$CLIENT_ID&limit=10"
 
     suspend fun search(query: String): List<Song> {
         return try {

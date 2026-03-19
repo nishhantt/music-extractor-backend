@@ -10,8 +10,6 @@ import javax.inject.Singleton
 @Singleton
 class MusicRepository @Inject constructor(
     private val saavnService: SaavnService,
-    private val youtubeService: com.example.musicplayer.network.YouTubeSearchService,
-    private val soundCloudService: com.example.musicplayer.network.SoundCloudService,
     private val localMusicRepository: LocalMusicRepository
 ) {
     suspend fun globalSearch(query: String): com.example.musicplayer.domain.models.SearchResult = withContext(Dispatchers.IO) {
@@ -23,22 +21,11 @@ class MusicRepository @Inject constructor(
             )
         }
 
-        val saavnResults = saavnService.globalSearch(query)
-        val ytSongs = try { youtubeService.searchSongs(query) } catch (e: Exception) { emptyList() }
-        val scSongs = try { soundCloudService.search(query) } catch (e: Exception) { emptyList() }
-
-        // Merge and de-duplicate (prefer Saavn -> SC -> YT)
-        val mergedSongs = (saavnResults.songs + scSongs + ytSongs).distinctBy { "${it.title}-${it.artist}".lowercase() }
-        
-        saavnResults.copy(
-            songs = mergedSongs,
-            topResult = saavnResults.topResult ?: mergedSongs.firstOrNull()
-        )
+        saavnService.globalSearch(query)
     }
 
     suspend fun searchSongs(query: String): List<Song> = withContext(Dispatchers.IO) {
-        val saavn = saavnService.searchSongs(query)
-        if (saavn.isEmpty()) youtubeService.searchSongs(query) else saavn
+        saavnService.searchSongs(query)
     }
 
     suspend fun getAlbumSongs(albumId: String) = saavnService.getAlbumDetails(albumId)
