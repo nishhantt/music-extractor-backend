@@ -70,8 +70,19 @@ fun AppRoot() {
                     )
                 }
 
-                composable("search") {
+                composable(
+                    "search?query={query}",
+                    arguments = listOf(
+                        androidx.navigation.navArgument("query") { 
+                            type = androidx.navigation.NavType.StringType
+                            nullable = true 
+                            defaultValue = null
+                        }
+                    )
+                ) { backStackEntry ->
+                    val query = backStackEntry.arguments?.getString("query")
                     SearchScreen(
+                        initialQuery = query,
                         onSongSelected = { song, playlist ->
                             playerViewModel.playSong(song, playlist)
                             navController.navigate("player") {

@@ -37,12 +37,20 @@ import com.example.musicplayer.ui.components.*
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     playerViewModel: com.example.musicplayer.presentation.player.PlayerViewModel = hiltViewModel(),
+    initialQuery: String? = null,
     onSongSelected: (Song, List<Song>) -> Unit,
     onArtistSelected: (com.example.musicplayer.domain.models.Artist) -> Unit = {},
     onAlbumSelected: (com.example.musicplayer.domain.models.Album) -> Unit = {},
     onBack: () -> Unit = {}
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf(initialQuery ?: "") }
+    
+    // Trigger initial search if query is provided (e.g. "local_files")
+    LaunchedEffect(initialQuery) {
+        if (!initialQuery.isNullOrBlank()) {
+            viewModel.search(initialQuery)
+        }
+    }
     val results by viewModel.searchResults.collectAsState()
     val recentSearches by viewModel.recentSearches.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
