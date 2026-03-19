@@ -1,120 +1,105 @@
-"""
-Extractor backend for the Music Player app.
-Handles YouTube extraction via yt-dlp and JioSaavn search proxying.
-"""
-from flask import Flask, request, jsonify, Response, stream_with_context
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse
 import yt_dlp
 import requests
 import json
+import uvicorn
+from typing import List
 
-app = Flask(__name__)
+app = FastAPI()
 
-# JioSaavn API Configuration
-SAAVN_API_URL = "https://saavn.dev/api/search/songs"
+@app.get("/")
+async def root():
+    return {"status": "online", "message": "Skibidi Music Backend is ready."}
 
-@app.route("/saavn/search")
-def saavn_search():
-    query = request.args.get("query")
-    if not query:
-        return jsonify({"success": False, "message": "Query is required"}), 400
+# Configuration for yt-dlp
+# You can add 'cookiefile': 'cookies.txt' here later for "Serious Use"
+YDL_OPTIONS = {
+    'format': 'bestaudio/best',
+    'noplaylist': True,
+    'quiet': True,
+    'no_warnings': True,
+}
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Accept": "application/json"
+@app.get("/search")
+async def search(q: String):
+    """
+    Searches YouTube using yt-dlp search engine.
+    This is keyless and avoids Google API quotas.
+    """
+    if not q:
+        raise HTTPException(status_code=400, detail="Query is required")
+    
+    # Use yt-dlp to find videos
+    search_opts = {
+        'extract_flat': True,
+        'quiet': True,
+        'no_warnings': True,
     }
-
+    
     try:
-        # Calling Saavn API from the server side bypasses mobile-specific bot detection
-        params = {"query": query}
-        response = requests.get(SAAVN_API_URL, params=params, headers=headers, timeout=10)
-
-        if response.status_code != 200:
-            return jsonify({"success": False, "message": f"Upstream API error: {response.status_code}"}), response.status_code
-
-        return response.text, 200, {"Content-Type": "application/json"}
-
+        with yt_dlp.YoutubeDL(search_opts) as ydl:
+            # search: prefixes are used by yt-dlp for search
+            result = ydl.extract_info(f"ytsearch10:{q}", download=False)
+            entries = result.get('entries', [])
+            
+            songs = []
+            for entry in entries:
+                songs.append({
+                    "id": f"yt_{entry['id']}",
+                    "title": entry.get('title'),
+                    "artist": entry.get('uploader'),
+                    "image": f"https://img.youtube.com/vi/{entry['id']}/maxresdefault.jpg",
+                    "audioUrl": "" # Client will call /audio with id
+                })
+            return {"songs": songs}
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-def _resolve_audio_format(video_id: str):
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "extract_flat": False,
-    }
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        if not info:
-            return None, None, None
-
-        formats = info.get("formats") or []
-        picked = None
-        for f in formats:
-            if f.get("vcodec") == "none" and f.get("url"):
-                picked = f
-                break
-        if not picked:
+@app.get("/audio")
+async def audio(videoId: String):
+    """
+    Proxies the audio stream from YouTube to the mobile app.
+    Bypasses signature and location locks.
+    """
+    clean_id = videoId.replace("yt_", "")
+    url = f"https://www.youtube.com/watch?v={clean_id}"
+    
+    try:
+        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+            info = ydl.extract_info(url, download=False)
+            
+            # Filter for best M4A for A21s hardware
+            formats = info.get('formats', [])
+            best_audio = None
             for f in formats:
-                if f.get("url"):
-                    picked = f
+                if f.get('vcodec') == 'none' and (f.get('ext') == 'm4a' or 'mp4a' in f.get('acodec', '')):
+                    best_audio = f
                     break
-        if not picked and info.get("url"):
-            picked = {"url": info.get("url")}
-        if not picked or not picked.get("url"):
-            return info, None, None
+            
+            if not best_audio:
+                best_audio = next((f for f in formats if f.get('vcodec') == 'none'), None)
+            
+            if not best_audio:
+                raise HTTPException(status_code=404, detail="No audio stream found")
+            
+            audio_url = best_audio['url']
+            headers = best_audio.get('http_headers', {})
 
-        direct_url = picked["url"]
-        if direct_url.startswith("http://"):
-            direct_url = "https://" + direct_url[len("http://"):]
+            # Proxy the data
+            def stream_file():
+                with requests.get(audio_url, headers=headers, stream=True) as resp:
+                    resp.raise_for_status()
+                    for chunk in resp.iter_content(chunk_size=128 * 1024):
+                        yield chunk
 
-        headers = picked.get("http_headers") or {}
-        return info, direct_url, headers
+            return StreamingResponse(
+                stream_file(), 
+                media_type=best_audio.get('mime_type', 'audio/mp4')
+            )
 
-
-@app.route("/stream")
-def stream():
-    video_id = request.args.get("videoId")
-    if not video_id:
-        return jsonify({"error": "missing videoId"}), 400
-    try:
-        return jsonify({
-            "url": f"/audio?videoId={video_id}",
-            "title": None,
-            "mimeType": "audio/*",
-        })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/audio")
-def audio():
-    video_id = request.args.get("videoId")
-    if not video_id:
-        return jsonify({"error": "missing videoId"}), 400
-    try:
-        info, direct_url, headers = _resolve_audio_format(video_id)
-        if not info or not direct_url:
-            return jsonify({"error": "no audio url"}), 404
-
-        r = requests.get(direct_url, headers=headers, stream=True, timeout=30)
-        r.raise_for_status()
-
-        content_type = r.headers.get("Content-Type", "audio/*")
-
-        @stream_with_context
-        def generate():
-            for chunk in r.iter_content(chunk_size=64 * 1024):
-                if chunk:
-                    yield chunk
-
-        return Response(generate(), content_type=content_type)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

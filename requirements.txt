@@ -1,3 +1,6 @@
-flask>=2.0
-yt-dlp>=2024.1.1
-requests>=2.31
+fastapi
+uvicorn
+yt-dlp
+requests
+python-multipart
+gunicorn

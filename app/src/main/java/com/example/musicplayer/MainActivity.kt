@@ -21,6 +21,9 @@ import com.example.musicplayer.presentation.search.SearchScreen
 import com.example.musicplayer.presentation.player.PlayerScreen
 import com.example.musicplayer.presentation.player.PlayerViewModel
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import com.example.musicplayer.di.NetworkModule
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -31,6 +34,18 @@ class MainActivity : ComponentActivity() {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
             }
         }
+
+        // Pre-warm the backend server (wake it up from sleep)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder().url(NetworkModule.BACKEND_URL).build()
+                client.newCall(request).execute().close()
+            } catch (e: Exception) {
+                // Ignore errors during pre-warm
+            }
+        }
+
         setContent {
             androidx.compose.material.MaterialTheme(colors = androidx.compose.material.darkColors()) {
                 AppRoot()

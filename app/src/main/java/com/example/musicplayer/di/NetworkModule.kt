@@ -16,6 +16,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    // IMPORTANT: Change this to your PC's IP address (e.g., 192.168.1.100)
+    // Run 'ipconfig' on Windows or 'ifconfig' on Linux to find your local IP.
+    const val BACKEND_URL = "http://192.168.1.100:8080"
+
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
