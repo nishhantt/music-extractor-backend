@@ -41,14 +41,24 @@ class YouTubeExtractor @Inject constructor(
                     // Priority 1: audioStreams
                     val audioStreams = json.optJSONArray("audioStreams")
                     if (audioStreams != null && audioStreams.length() > 0) {
+                        // Prefer M4A/MP4 audio for hardware decoding support on A21s
                         var bestUrl = ""
-                        var bestBitrate = -1
+                        var bestScore = -1
                         
                         for (i in 0 until audioStreams.length()) {
                             val stream = audioStreams.getJSONObject(i)
                             val bitrate = stream.optInt("bitrate", 128000)
-                            if (bitrate > bestBitrate) {
-                                bestBitrate = bitrate
+                            val codec = stream.optString("codec", "").lowercase()
+                            val format = stream.optString("format", "").lowercase()
+                            
+                            // Score: Bitrate + bonus for M4A/MP4 compatibility
+                            var currentScore = bitrate / 1000
+                            if (codec.contains("mp4a") || format.contains("m4a")) {
+                                currentScore += 50 // Bonus for hardware support
+                            }
+
+                            if (currentScore > bestScore) {
+                                bestScore = currentScore
                                 bestUrl = stream.getString("url")
                             }
                         }
