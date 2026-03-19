@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 fun SidebarContent(
     onSuggestedClick: () -> Unit,
     onLikedClick: () -> Unit,
+    onLocalFilesClick: () -> Unit,
     onClose: () -> Unit
 ) {
     val currentTime = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -49,6 +50,7 @@ fun SidebarContent(
 
         SidebarItem("Suggested Songs", Icons.Default.AutoAwesome, onSuggestedClick)
         SidebarItem("Liked Songs", Icons.Default.Favorite, onLikedClick)
+        SidebarItem("Local Files", Icons.Default.Folder, onLocalFilesClick)
 
         Spacer(modifier = Modifier.weight(1f))
 

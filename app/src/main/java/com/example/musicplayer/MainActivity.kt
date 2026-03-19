@@ -51,8 +51,12 @@ fun AppRoot() {
             drawerState = drawerState,
             drawerContent = {
                 com.example.musicplayer.ui.components.SidebarContent(
-                    onSuggestedClick = { /* Navigate or filter */ },
-                    onLikedClick = { /* Navigate to Liked Songs */ },
+                    onSuggestedClick = { scope.launch { drawerState.close() } },
+                    onLikedClick = { scope.launch { drawerState.close() } },
+                    onLocalFilesClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("search?query=local_files")
+                    },
                     onClose = { scope.launch { drawerState.close() } }
                 )
             }

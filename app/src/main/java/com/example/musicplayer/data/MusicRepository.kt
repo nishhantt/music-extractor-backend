@@ -10,19 +10,30 @@ import javax.inject.Singleton
 @Singleton
 class MusicRepository @Inject constructor(
     private val saavnService: SaavnService,
-    private val youtubeService: com.example.musicplayer.network.YouTubeSearchService
+    private val youtubeService: com.example.musicplayer.network.YouTubeSearchService,
+    private val soundCloudService: com.example.musicplayer.network.SoundCloudService,
+    private val localMusicRepository: LocalMusicRepository
 ) {
     suspend fun globalSearch(query: String): com.example.musicplayer.domain.models.SearchResult = withContext(Dispatchers.IO) {
-        val saavnResults = saavnService.globalSearch(query)
-        if (saavnResults.songs.isEmpty()) {
-            // Fallback to YouTube
-            val ytSongs = youtubeService.searchSongs(query)
+        if (query == "local_files") {
+            val localSongs = localMusicRepository.getLocalSongs()
             return@withContext com.example.musicplayer.domain.models.SearchResult(
-                songs = ytSongs,
-                topResult = ytSongs.firstOrNull()
+                songs = localSongs,
+                topResult = localSongs.firstOrNull()
             )
         }
-        saavnResults
+
+        val saavnResults = saavnService.globalSearch(query)
+        val ytSongs = try { youtubeService.searchSongs(query) } catch (e: Exception) { emptyList() }
+        val scSongs = try { soundCloudService.search(query) } catch (e: Exception) { emptyList() }
+
+        // Merge and de-duplicate (prefer Saavn -> SC -> YT)
+        val mergedSongs = (saavnResults.songs + scSongs + ytSongs).distinctBy { "${it.title}-${it.artist}".lowercase() }
+        
+        saavnResults.copy(
+            songs = mergedSongs,
+            topResult = saavnResults.topResult ?: mergedSongs.firstOrNull()
+        )
     }
 
     suspend fun searchSongs(query: String): List<Song> = withContext(Dispatchers.IO) {
