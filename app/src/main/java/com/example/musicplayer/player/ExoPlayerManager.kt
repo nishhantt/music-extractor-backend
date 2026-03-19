@@ -34,9 +34,6 @@ class ExoPlayerManager @Inject constructor(
 
     fun asPlayer(): ExoPlayer = player
 
-
-    fun asPlayer(): ExoPlayer = player
-
     fun play() { player.play() }
     fun pause() { player.pause() }
     fun seekTo(positionMs: Long) { player.seekTo(positionMs) }

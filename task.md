@@ -8,4 +8,6 @@
 - [x] Build Search UI [x]
 - [x] Enhance Player UI and Logic [x]
 - [x] Error Checking and Bug Fixes [x]
-- [x] Final Verification and Walkthrough [ ]
+    - [x] Fix JioSaavn API (saavn.dev down)
+- [x] Final Verification and Walkthrough [x]
+- [x] Provide Mobile Deployment Guide [x]

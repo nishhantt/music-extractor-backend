@@ -34,9 +34,9 @@ class SaavnService(private val client: OkHttpClient) {
                 if (results.isNotEmpty()) return@withContext results
             }
 
-            // Fallback: Direct Call with "Exact Fix" headers
-            val directUrl = "https://saavn.dev/api/search/songs?query=$sanitizedQuery"
-            Log.d("SaavnAPI", "Fallback to direct call: $directUrl")
+            // Fallback: Direct Call with Working API (saavn.sumit.co)
+            val directUrl = "https://saavn.sumit.co/api/search/songs?query=$sanitizedQuery"
+            Log.d("SaavnAPI", "Direct call to working API: $directUrl")
             fetchAndParse(directUrl, isDirect = true)
         }
     }
@@ -45,7 +45,6 @@ class SaavnService(private val client: OkHttpClient) {
         val requestBuilder = Request.Builder().url(url)
         
         if (isDirect) {
-            // Apply the exact headers provided in the fix
             requestBuilder.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
             requestBuilder.addHeader("Accept", "application/json")
         }
@@ -60,7 +59,7 @@ class SaavnService(private val client: OkHttpClient) {
             }
 
             val json = JSONObject(body)
-            // Some API versions wrap in 'data', some don't
+            // Handle new structure: { success: true, data: { results: [...] } }
             val data = json.optJSONObject("data") ?: json
             val results = data.optJSONArray("results") ?: json.optJSONArray("data") ?: return emptyList()
 
@@ -84,11 +83,28 @@ class SaavnService(private val client: OkHttpClient) {
                     images.getJSONObject(images.length() - 1).getString("url")
                 }
 
+                // Extract artist name from artists.primary[0].name
+                var artist = "Unknown Artist"
+                try {
+                    val artistsObj = item.optJSONObject("artists")
+                    if (artistsObj != null) {
+                        val primaryArtists = artistsObj.optJSONArray("primary")
+                        if (primaryArtists != null && primaryArtists.length() > 0) {
+                            artist = primaryArtists.getJSONObject(0).getString("name")
+                        }
+                    } else {
+                        // Fallback for older API versions
+                        artist = item.optString("primaryArtists", "Unknown Artist")
+                    }
+                } catch (e: Exception) {
+                    Log.w("SaavnAPI", "Could not parse artist for ${item.optString("name")}")
+                }
+
                 songs.add(
                     Song(
                         id = item.getString("id"),
                         title = item.getString("name"),
-                        artist = item.optString("primaryArtists", "Unknown Artist"),
+                        artist = artist,
                         image = image,
                         audioUrl = audioUrl
                     )
