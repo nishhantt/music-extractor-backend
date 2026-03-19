@@ -20,4 +20,7 @@ object DatabaseModule {
             .fallbackToDestructiveMigration()
             .build()
     }
+
+    @Provides
+    fun provideBehaviorDao(db: AppDatabase) = db.behaviorDao()
 }

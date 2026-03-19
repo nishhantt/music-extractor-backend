@@ -116,4 +116,143 @@ class SaavnService(private val client: OkHttpClient) {
             emptyList()
         }
     }
+
+    suspend fun globalSearch(query: String): com.example.musicplayer.domain.models.SearchResult = withContext(Dispatchers.IO) {
+        val sanitizedQuery = URLEncoder.encode(query.trim(), "UTF-8")
+        val url = "https://saavn.sumit.co/api/search?query=$sanitizedQuery"
+        
+        try {
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return@withContext com.example.musicplayer.domain.models.SearchResult()
+            
+            val json = JSONObject(body)
+            val data = json.getJSONObject("data")
+            
+            val songs = parseSearchSongs(data.optJSONObject("songs")?.optJSONArray("results"))
+            val albums = parseSearchAlbums(data.optJSONObject("albums")?.optJSONArray("results"))
+            val artists = parseSearchArtists(data.optJSONObject("artists")?.optJSONArray("results"))
+            
+            com.example.musicplayer.domain.models.SearchResult(
+                topResult = songs.firstOrNull(),
+                songs = songs,
+                albums = albums,
+                artists = artists
+            )
+        } catch (e: Exception) {
+            Log.e("SaavnAPI", "Global search failed", e)
+            com.example.musicplayer.domain.models.SearchResult()
+        }
+    }
+
+    private fun parseSearchSongs(results: org.json.JSONArray?): List<Song> {
+        if (results == null) return emptyList()
+        val songs = mutableListOf<Song>()
+        for (i in 0 until results.length()) {
+            val item = results.getJSONObject(i)
+            songs.add(
+                Song(
+                    id = item.getString("id"),
+                    title = item.getString("title"),
+                    artist = item.optString("primaryArtists", "Unknown Artist"),
+                    image = parseSearchImageUrl(item.optJSONArray("image")),
+                    audioUrl = "" // Stream URL needs song-specific call
+                )
+            )
+        }
+        return songs
+    }
+
+    private fun parseSearchAlbums(results: org.json.JSONArray?): List<com.example.musicplayer.domain.models.Album> {
+        if (results == null) return emptyList()
+        val albums = mutableListOf<com.example.musicplayer.domain.models.Album>()
+        for (i in 0 until results.length()) {
+            val item = results.getJSONObject(i)
+            albums.add(
+                com.example.musicplayer.domain.models.Album(
+                    id = item.getString("id"),
+                    title = item.getString("title"),
+                    artist = item.optString("artist", "Various Artists"),
+                    image = parseSearchImageUrl(item.optJSONArray("image")),
+                    url = item.optString("url")
+                )
+            )
+        }
+        return albums
+    }
+
+    private fun parseSearchArtists(results: org.json.JSONArray?): List<com.example.musicplayer.domain.models.Artist> {
+        if (results == null) return emptyList()
+        val artists = mutableListOf<com.example.musicplayer.domain.models.Artist>()
+        for (i in 0 until results.length()) {
+            val item = results.getJSONObject(i)
+            artists.add(
+                com.example.musicplayer.domain.models.Artist(
+                    id = item.getString("id"),
+                    name = item.getString("title"),
+                    image = parseSearchImageUrl(item.optJSONArray("image")),
+                    url = item.optString("url")
+                )
+            )
+        }
+        return artists
+    }
+
+    private fun parseSearchImageUrl(images: org.json.JSONArray?): String {
+        if (images == null || images.length() == 0) return ""
+        return images.getJSONObject(images.length() - 1).getString("url")
+    }
+
+    suspend fun getAlbumDetails(albumId: String): List<Song> = withContext(Dispatchers.IO) {
+        val url = "https://saavn.sumit.co/api/albums?id=$albumId"
+        try {
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            val json = JSONObject(response.body?.string() ?: "")
+            val songsJson = json.getJSONObject("data").getJSONArray("songs")
+            
+            val songs = mutableListOf<Song>()
+            for (i in 0 until songsJson.length()) {
+                val item = songsJson.getJSONObject(i)
+                songs.add(parseSongItem(item))
+            }
+            songs
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getArtistSongs(artistId: String): List<Song> = withContext(Dispatchers.IO) {
+        val url = "https://saavn.sumit.co/api/artists?id=$artistId"
+        try {
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            val json = JSONObject(response.body?.string() ?: "")
+            val songsJson = json.getJSONObject("data").getJSONArray("songs")
+            
+            val songs = mutableListOf<Song>()
+            for (i in 0 until songsJson.length()) {
+                val item = songsJson.getJSONObject(i)
+                songs.add(parseSongItem(item))
+            }
+            songs
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun parseSongItem(item: JSONObject): Song {
+        val downloadUrls = item.getJSONArray("downloadUrl")
+        val audioUrl = downloadUrls.getJSONObject(downloadUrls.length() - 1).getString("url")
+        val images = item.getJSONArray("image")
+        val image = images.getJSONObject(images.length() - 1).getString("url")
+        
+        return Song(
+            id = item.getString("id"),
+            title = item.getString("name"),
+            artist = item.getJSONObject("artists").getJSONArray("primary").getJSONObject(0).getString("name"),
+            image = image,
+            audioUrl = audioUrl
+        )
+    }
 }

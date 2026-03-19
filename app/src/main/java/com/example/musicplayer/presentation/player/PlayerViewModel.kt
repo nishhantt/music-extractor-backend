@@ -19,7 +19,9 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
-    private val exoPlayerManager: ExoPlayerManager
+    private val exoPlayerManager: ExoPlayerManager,
+    private val behaviorRepository: com.example.musicplayer.data.BehaviorRepository,
+    private val recommendationEngine: com.example.musicplayer.domain.recommendation.RecommendationEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PlayerUiState>(PlayerUiState.Idle)
@@ -54,7 +56,7 @@ class PlayerViewModel @Inject constructor(
                 if (state == Player.STATE_READY) {
                     _duration.value = player.duration.coerceAtLeast(0)
                 } else if (state == Player.STATE_ENDED) {
-                    next()
+                    smartNext()
                 }
             }
 
@@ -64,6 +66,11 @@ class PlayerViewModel @Inject constructor(
                 if (currentSong != null) {
                     currentIndex = player.currentMediaItemIndex
                     _uiState.value = PlayerUiState.Playing(currentSong)
+                    
+                    // Track play behavior
+                    viewModelScope.launch {
+                        behaviorRepository.trackPlay(currentSong.id, currentSong.artist, currentSong.title)
+                    }
                 }
             }
         })
@@ -135,11 +142,46 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun next() {
+        val currentSong = (_uiState.value as? PlayerUiState.Playing)?.song
+        if (currentSong != null) {
+            viewModelScope.launch { behaviorRepository.trackSkip(currentSong.id) }
+        }
+        fadeOutAndNext()
+    }
+
+    private fun fadeOutAndNext() {
+        viewModelScope.launch {
+            // Smooth fade out
+            for (i in 10 downTo 0) {
+                player.volume = i / 10f
+                delay(50)
+            }
+            smartNext()
+            // Reset volume for next track
+            player.volume = 1.0f
+        }
+    }
+
+    private fun smartNext() {
         if (player.hasNextMediaItem()) {
             player.seekToNextMediaItem()
         } else {
-            // Optional: Loop back to start if at the end
-            if (_playlist.value.isNotEmpty()) {
+            // AI logic: Recommend a fresh song if we reach the end of the playlist
+            val currentSong = (_uiState.value as? PlayerUiState.Playing)?.song
+            if (currentSong != null && _playlist.value.isNotEmpty()) {
+                viewModelScope.launch {
+                    val recommended = recommendationEngine.recommendNextSong(currentSong, _playlist.value)
+                    // In a real app, we might fetch NEW songs from API here.
+                    // For now, we jump to the recommended one in the current list.
+                    val index = _playlist.value.indexOf(recommended)
+                    if (index != -1) {
+                        player.seekTo(index, 0L)
+                    } else {
+                        player.seekTo(0, 0)
+                    }
+                    player.play()
+                }
+            } else if (_playlist.value.isNotEmpty()) {
                 player.seekTo(0, 0)
                 player.play()
             }

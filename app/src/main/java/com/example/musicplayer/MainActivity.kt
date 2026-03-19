@@ -57,12 +57,65 @@ fun AppRoot() {
                 SearchScreen(
                     onSongSelected = { song, playlist ->
                         playerViewModel.playSong(song, playlist)
-                        // Go back to player screen
                         navController.navigate("player") {
                             popUpTo("player") { inclusive = true }
                         }
                     },
+                    onArtistSelected = { artist ->
+                        navController.navigate("artist/${artist.id}?name=${artist.name}&img=${android.net.Uri.encode(artist.image)}")
+                    },
+                    onAlbumSelected = { album ->
+                        navController.navigate("album/${album.id}?title=${album.title}&img=${android.net.Uri.encode(album.image)}")
+                    },
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                "artist/{id}?name={name}&img={img}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("id") { type = androidx.navigation.NavType.StringType },
+                    androidx.navigation.navArgument("name") { type = androidx.navigation.NavType.StringType },
+                    androidx.navigation.navArgument("img") { type = androidx.navigation.NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id") ?: ""
+                val name = backStackEntry.arguments?.getString("name") ?: ""
+                val img = backStackEntry.arguments?.getString("img") ?: ""
+                com.example.musicplayer.presentation.detail.DetailScreen(
+                    title = name,
+                    imageUrl = img,
+                    type = "ARTIST",
+                    id = id,
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { song, playlist ->
+                        playerViewModel.playSong(song, playlist)
+                        navController.navigate("player") { popUpTo("player") { inclusive = true } }
+                    }
+                )
+            }
+
+            composable(
+                "album/{id}?title={title}&img={img}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("id") { type = androidx.navigation.NavType.StringType },
+                    androidx.navigation.navArgument("title") { type = androidx.navigation.NavType.StringType },
+                    androidx.navigation.navArgument("img") { type = androidx.navigation.NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id") ?: ""
+                val title = backStackEntry.arguments?.getString("title") ?: ""
+                val img = backStackEntry.arguments?.getString("img") ?: ""
+                com.example.musicplayer.presentation.detail.DetailScreen(
+                    title = title,
+                    imageUrl = img,
+                    type = "ALBUM",
+                    id = id,
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { song, playlist ->
+                        playerViewModel.playSong(song, playlist)
+                        navController.navigate("player") { popUpTo("player") { inclusive = true } }
+                    }
                 )
             }
         }

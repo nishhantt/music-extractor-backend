@@ -17,17 +17,30 @@ import javax.inject.Singleton
 class ExoPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    private val cache: androidx.media3.datasource.cache.Cache by lazy {
+        val cacheDir = java.io.File(context.cacheDir, "media_cache")
+        val databaseProvider = androidx.media3.database.StandaloneDatabaseProvider(context)
+        androidx.media3.datasource.cache.SimpleCache(cacheDir, androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(100 * 1024 * 1024), databaseProvider)
+    }
+
     private val httpDataSourceFactory: HttpDataSource.Factory by lazy {
         DefaultHttpDataSource.Factory()
-            .setUserAgent("Skibidi/0.1 (Android)")
+            .setUserAgent("Skibidi/1.0 (Android)")
             .setAllowCrossProtocolRedirects(true)
+    }
+
+    private val cacheDataSourceFactory: androidx.media3.datasource.DataSource.Factory by lazy {
+        androidx.media3.datasource.cache.CacheDataSource.Factory()
+            .setCache(cache)
+            .setUpstreamDataSourceFactory(httpDataSourceFactory)
+            .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 
     private val player: ExoPlayer by lazy {
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(
                 androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
-                    .setDataSourceFactory(httpDataSourceFactory)
+                    .setDataSourceFactory(cacheDataSourceFactory)
             )
             .build()
     }
