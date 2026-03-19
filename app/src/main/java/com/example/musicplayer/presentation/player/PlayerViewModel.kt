@@ -124,7 +124,7 @@ class PlayerViewModel @Inject constructor(
                     song
                 }
 
-                if (!kotlinx.coroutines.isActive) return@launch
+                if (!this.isActive) return@launch
 
                 if (songWithUrl.audioUrl.isBlank()) {
                     _uiState.value = PlayerUiState.Error("Invalid audio URL")
