@@ -12,7 +12,7 @@
         android:icon="@drawable/app_icon"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.MusicPlayer"
-        android:name=".MusicApp">
+        android:name=".App">
 
         <activity
             android:name=".MainActivity"

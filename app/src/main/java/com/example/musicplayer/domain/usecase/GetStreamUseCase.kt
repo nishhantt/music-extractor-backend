@@ -1,14 +1,12 @@
 package com.example.musicplayer.domain.usecase
 
-import com.example.musicplayer.data.YouTubeRepository
-import com.example.musicplayer.domain.models.PlayableMedia
-import kotlinx.coroutines.flow.Flow
+import com.example.musicplayer.data.MusicRepository
+import com.example.musicplayer.domain.models.Song
 import javax.inject.Inject
 
 class GetStreamUseCase @Inject constructor(
-    private val repository: YouTubeRepository
+    private val repository: MusicRepository
 ) {
-    fun execute(videoId: String): Flow<Result<PlayableMedia>> {
-        return repository.getPlayableStream(videoId)
-    }
+    // This usecase is no longer needed for JioSaavn architecture as SaavnService returns the stream URL directly.
+    // Deprecating it or repurposing it if needed.
 }

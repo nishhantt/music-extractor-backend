@@ -12,3 +12,14 @@ data class PlayableMedia(
     val title: String? = null,
     val thumbnailUrl: String? = null
 )
+
+/**
+ * DEPRECATED: Use Song model instead.
+ */
+fun PlayableMedia.toSong() = Song(
+    id = "",
+    title = title ?: "",
+    artist = "",
+    image = thumbnailUrl ?: "",
+    audioUrl = uriString
+)

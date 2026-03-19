@@ -3,96 +3,131 @@ package com.example.musicplayer.presentation.search
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.example.musicplayer.domain.models.Video
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.example.musicplayer.domain.models.Song
 
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
-    onPlayVideo: (String) -> Unit,
+    onSongSelected: (Song) -> Unit,
     onBack: () -> Unit = {}
 ) {
-    val queryState = remember { mutableStateOf("") }
-    val results by viewModel.results.collectAsState()
-    val loading by viewModel.loading.collectAsState()
-    val scope = rememberCoroutineScope()
+    var query by remember { mutableStateOf("") }
+    val songs by viewModel.songs.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF121212))
-            .padding(16.dp)
     ) {
-        TextField(
-            value = queryState.value,
-            onValueChange = {
-                queryState.value = it
-                scope.launch {
-                    delay(400)
-                    if (it == queryState.value && it.isNotBlank()) viewModel.search(it)
-                }
-            },
-            placeholder = { Text("Search songs…", color = Color.Gray) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.textFieldColors(
-                backgroundColor = Color(0xFF1E1E1E),
-                textColor = Color.White,
-                placeholderColor = Color.Gray,
-                cursorColor = Color.White,
-                focusedIndicatorColor = Color(0xFF1DB954),
-                unfocusedIndicatorColor = Color.Gray
+        // Search Bar with Back Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+            
+            TextField(
+                value = query,
+                onValueChange = {
+                    query = it
+                    viewModel.onQueryChanged(it)
+                },
+                placeholder = { Text("Search songs, artists...", color = Color.Gray) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { 
+                            query = ""
+                            viewModel.onQueryChanged("")
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray)
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    focusManager.clearFocus()
+                }),
+                colors = TextFieldDefaults.textFieldColors(
+                    backgroundColor = Color.Transparent,
+                    textColor = Color.White,
+                    cursorColor = Color(0xFF1DB954),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
-        )
+        }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (loading) {
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFF1DB954), strokeWidth = 2.dp)
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            results.forEach { video ->
-                SearchItem(video = video, onClick = { onPlayVideo(video.id) })
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            items(songs) { song ->
+                SongItem(song = song, onClick = { 
+                    focusManager.clearFocus()
+                    onSongSelected(song) 
+                })
             }
         }
     }
 }
 
 @Composable
-fun SearchItem(video: Video, onClick: () -> Unit) {
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 8.dp)
-        .clickable { onClick() }) {
+fun SongItem(song: Song, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         AsyncImage(
-            model = video.thumbnailUrl,
-            contentDescription = video.title,
-            modifier = Modifier.size(64.dp),
+            model = song.image,
+            contentDescription = song.title,
+            modifier = Modifier.size(56.dp),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-            Text(video.title, color = Color.White)
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(song.title, color = Color.White, maxLines = 1)
+            Text(song.artist, color = Color.Gray, maxLines = 1)
         }
     }
 }

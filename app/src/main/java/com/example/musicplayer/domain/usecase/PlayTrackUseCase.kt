@@ -1,14 +1,9 @@
 package com.example.musicplayer.domain.usecase
 
-import com.example.musicplayer.data.PlayerRepository
-import com.example.musicplayer.domain.models.PlayableMedia
-import kotlinx.coroutines.flow.Flow
+import com.example.musicplayer.domain.models.Song
 import javax.inject.Inject
 
-class PlayTrackUseCase @Inject constructor(
-    private val playerRepository: PlayerRepository
-) {
-    suspend fun execute(media: PlayableMedia) {
-        playerRepository.enqueueAndPlay(media)
-    }
+class PlayTrackUseCase @Inject constructor() {
+    // Repurposed or simplified for Saavn architecture. 
+    // In this refactor, PlayerViewModel handles playback directly via ExoPlayerManager.
 }

@@ -2,38 +2,53 @@ package com.example.musicplayer.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.musicplayer.domain.models.Video
-import com.example.musicplayer.domain.usecase.SearchUseCase
+import com.example.musicplayer.data.MusicRepository
+import com.example.musicplayer.domain.models.Song
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val searchUseCase: SearchUseCase
+    private val musicRepository: MusicRepository
 ) : ViewModel() {
 
-    private val _results = MutableStateFlow<List<Video>>(emptyList())
-    val results: StateFlow<List<Video>> = _results.asStateFlow()
+    private val _songs = MutableStateFlow<List<Song>>(emptyList())
+    val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
-    private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private var currentJob: Job? = null
+    private var searchJob: Job? = null
 
-    fun search(query: String) {
-        currentJob?.cancel()
-        currentJob = viewModelScope.launch {
-            _loading.value = true
-            searchUseCase.execute(query).collectLatest { res ->
-                res.onSuccess { list -> _results.value = list }
-                res.onFailure { _results.value = emptyList() }
-                _loading.value = false
+    /**
+     * Implementation of debounce to avoid rate limiting and excessive API calls.
+     * As per engineering best practices.
+     */
+    fun onQueryChanged(query: String) {
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _songs.value = emptyList()
+            _isLoading.value = false
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            // Debounce for 500ms as recommended to prevent rate limiting
+            delay(500)
+            _isLoading.value = true
+            try {
+                val results = musicRepository.searchSongs(query)
+                _songs.value = results
+            } catch (e: Exception) {
+                _songs.value = emptyList()
+            } finally {
+                _isLoading.value = false
             }
         }
     }

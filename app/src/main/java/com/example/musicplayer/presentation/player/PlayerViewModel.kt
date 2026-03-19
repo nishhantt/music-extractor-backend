@@ -1,42 +1,25 @@
 package com.example.musicplayer.presentation.player
 
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import androidx.lifecycle.SavedStateHandle
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.musicplayer.domain.models.PlayableMedia
-import com.example.musicplayer.player.ExoPlayerManager
-import com.example.musicplayer.player.MusicPlayerService
-import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.PlaybackException
-import com.example.musicplayer.domain.usecase.PlayTrackUseCase
-import com.example.musicplayer.domain.usecase.ControlPlaybackUseCases
-import com.example.musicplayer.domain.usecase.GetStreamUseCase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.example.musicplayer.domain.models.Song
+import com.example.musicplayer.player.ExoPlayerManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import dagger.hilt.android.lifecycle.HiltViewModel
-import android.content.Context
 import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val exoPlayerManager: ExoPlayerManager,
-    private val getStreamUseCase: GetStreamUseCase,
-    private val playTrackUseCase: PlayTrackUseCase,
-    private val controlPlaybackUseCases: ControlPlaybackUseCases,
-    private val savedStateHandle: SavedStateHandle
+    private val exoPlayerManager: ExoPlayerManager
 ) : ViewModel() {
-
-    private val enableObservers: Boolean = true // tests can set false to skip background loops
 
     private val _uiState = MutableStateFlow<PlayerUiState>(PlayerUiState.Idle)
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -44,103 +27,67 @@ class PlayerViewModel @Inject constructor(
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
-    private val queue = mutableListOf<PlayableMedia>()
-    private var currentIndex = -1
-    private var repeatOne = false
+    private val _currentPosition = MutableStateFlow(0L)
+    val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
 
-    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    private val player: Player = exoPlayerManager.asPlayer()
 
     init {
-        if (enableObservers) {
-            // observe ExoPlayer position periodically and update UI state
-            viewModelScope.launch(Dispatchers.Main) {
-                while (true) {
-                    val pos = exoPlayerManager.asPlayer().currentPosition
-                    val current = _uiState.value
-                    if (current is PlayerUiState.Playing) {
-                        _uiState.value = current.copy(positionMs = pos)
-                    }
-                    delay(500)
-                }
+        player.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                _isPlaying.value = isPlayingNow
             }
-            // Listen to player state for end-of-track to advance queue and playing changes
-            exoPlayerManager.asPlayer().addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_ENDED) {
-                        viewModelScope.launch { next() }
-                    }
-                }
+        })
 
-                override fun onIsPlayingChanged(isPlayingNow: Boolean) {
-                    _isPlaying.value = isPlayingNow
+        viewModelScope.launch {
+            while (isActive) {
+                if (player.isPlaying) {
+                    _currentPosition.value = player.currentPosition
                 }
-
-                override fun onPlayerError(error: PlaybackException) {
-                    _uiState.value = PlayerUiState.Error(error)
-                }
-            })
+                delay(1000)
+            }
         }
     }
 
-    fun playVideo(videoId: String) = ioScope.launch {
-        _uiState.value = PlayerUiState.Loading
-        getStreamUseCase.execute(videoId).collect { res ->
-            res.onSuccess { playable ->
-                // Start service first so it can receive the play command (replay=1)
-                val intent = Intent(context, MusicPlayerService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-                playTrackUseCase.execute(playable)
-                queue.add(playable)
-                currentIndex = queue.lastIndex
-                _uiState.value = PlayerUiState.Playing(playable, 0L)
-            }
-            res.onFailure { t ->
-                _uiState.value = PlayerUiState.Error(t)
-            }
+    fun playSong(song: Song) {
+        if (song.audioUrl.isBlank()) {
+            Log.e("PlayerViewModel", "Audio URL is empty for song: ${song.title}")
+            _uiState.value = PlayerUiState.Error("Invalid audio URL")
+            return
+        }
+
+        try {
+            Log.d("Player", "Playing Saavn stream: ${song.audioUrl}")
+            exoPlayerManager.playSong(song)
+            _uiState.value = PlayerUiState.Playing(song)
+        } catch (e: Exception) {
+            Log.e("PlayerViewModel", "Playback error", e)
+            _uiState.value = PlayerUiState.Error("Playback failed")
         }
     }
 
     fun togglePlayPause() {
-        ioScope.launch {
-            val player = exoPlayerManager.asPlayer()
-            if (player.isPlaying) controlPlaybackUseCases.pause() else controlPlaybackUseCases.play()
-        }
-    }
-
-    fun seekTo(ms: Long) { exoPlayerManager.seekTo(ms) }
-
-    fun previous() {
-        ioScope.launch { controlPlaybackUseCases.previous() }
+        if (player.isPlaying) exoPlayerManager.pause() else exoPlayerManager.play()
     }
 
     fun next() {
-        if (repeatOne && currentIndex >= 0) {
-            val media = queue[currentIndex]
-            exoPlayerManager.prepareAndPlay(Uri.parse(media.uriString))
-            _uiState.value = PlayerUiState.Playing(media, 0L)
-            return
-        }
-        ioScope.launch { controlPlaybackUseCases.next() }
+        // Implement queue logic if needed
     }
 
-    fun toggleRepeat() {
-        repeatOne = !repeatOne
+    fun previous() {
+        // Implement queue logic if needed
     }
 
-    fun exoPlayerPositionMaxMs(): Long {
-        val d = exoPlayerManager.asPlayer().duration
-        return if (d >= 0) d else 0L
+    fun seekTo(ms: Long) {
+        exoPlayerManager.seekTo(ms)
     }
+
+    fun getDuration(): Long = player.duration.coerceAtLeast(0)
 }
 
 sealed interface PlayerUiState {
     object Idle : PlayerUiState
     object Loading : PlayerUiState
-    data class Playing(val media: PlayableMedia, val positionMs: Long = 0L) : PlayerUiState
-    data class Error(val throwable: Throwable) : PlayerUiState
+    data class Playing(val song: Song) : PlayerUiState
+    data class Error(val message: String) : PlayerUiState
 }

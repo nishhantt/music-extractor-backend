@@ -1,7 +1,2 @@
-package com.example.musicplayer
-
-import android.app.Application
-import dagger.hilt.android.HiltAndroidApp
-
-@HiltAndroidApp
-class MusicApp : Application()
+// This file is being removed to resolve Hilt duplicate app root issue.
+// Its content has been migrated to App.kt.

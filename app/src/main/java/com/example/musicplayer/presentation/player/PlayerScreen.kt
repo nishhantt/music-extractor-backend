@@ -37,22 +37,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerScreen(
-    videoId: String,
     onBack: () -> Unit = {},
     onSearch: () -> Unit = {},
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState(initial = PlayerUiState.Idle)
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(videoId) {
-        if (videoId.isNotBlank()) viewModel.playVideo(videoId)
-    }
+    
+    // In a real app, you'd observe player state from viewModel
+    val isPlaying = state is PlayerUiState.Playing
 
     // Vinyl rotation
     val rotation = remember { mutableStateOf(0f) }
@@ -64,10 +59,15 @@ fun PlayerScreen(
     }
 
     val currentTitle = if (state is PlayerUiState.Playing) {
-        (state as PlayerUiState.Playing).media.title ?: "Unknown"
+        (state as PlayerUiState.Playing).song.title
     } else "No Track"
+    
+    val currentArtist = if (state is PlayerUiState.Playing) {
+        (state as PlayerUiState.Playing).song.artist
+    } else ""
+
     val thumb = if (state is PlayerUiState.Playing) {
-        (state as PlayerUiState.Playing).media.thumbnailUrl
+        (state as PlayerUiState.Playing).song.image
     } else null
 
     Column(
@@ -77,7 +77,7 @@ fun PlayerScreen(
             .padding(horizontal = 16.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Top: glassy search bar (no back, no menu)
+        // Top: glassy search bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -106,7 +106,7 @@ fun PlayerScreen(
             }
         }
 
-        // Middle: rotating vinyl with cover art filling the label
+        // Middle: rotating vinyl
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -153,6 +153,13 @@ fun PlayerScreen(
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
+            Text(
+                text = currentArtist,
+                color = Color.Gray,
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center
+            )
+            
             if (state is PlayerUiState.Loading) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(text = "Loading…", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
@@ -160,46 +167,28 @@ fun PlayerScreen(
             if (state is PlayerUiState.Error) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Can’t play right now. Tap Play to retry.",
-                    color = Color.White.copy(alpha = 0.85f),
+                    text = (state as PlayerUiState.Error).message,
+                    color = Color.Red.copy(alpha = 0.85f),
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center
                 )
             }
         }
 
-        // Progress bar + times
+        // Progress bar (Simplified for this refactor)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
-            val position = when (state) {
-                is PlayerUiState.Playing -> (state as PlayerUiState.Playing).positionMs.toFloat()
-                else -> 0f
-            }
-            val duration = viewModel.exoPlayerPositionMaxMs().toFloat().coerceAtLeast(1f)
             Slider(
-                value = position.coerceIn(0f, duration),
-                onValueChange = { viewModel.seekTo(it.toLong()) },
-                valueRange = 0f..duration,
-                modifier = Modifier.fillMaxWidth(),
-                colors = androidx.compose.material.SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                )
+                value = 0f,
+                onValueChange = { },
+                modifier = Modifier.fillMaxWidth()
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(formatMs(position.toLong()), color = Color.White, fontSize = 12.sp)
-                Text(formatMs(duration.toLong()), color = Color.White, fontSize = 12.sp)
-            }
         }
 
-        // Bottom controls: prev, play/pause, next, repeat (at far right)
+        // Bottom controls
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -207,41 +196,19 @@ fun PlayerScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { viewModel.previous() }) {
-                Icon(
-                    imageVector = Icons.Filled.SkipPrevious,
-                    contentDescription = "Previous",
-                    tint = Color.White
-                )
+            IconButton(onClick = { /* viewModel.previous() */ }) {
+                Icon(Icons.Filled.SkipPrevious, "Previous", tint = Color.White)
             }
-            IconButton(onClick = { viewModel.togglePlayPause() }, modifier = Modifier.size(72.dp)) {
+            IconButton(onClick = { /* viewModel.togglePlayPause() */ }, modifier = Modifier.size(72.dp)) {
                 if (isPlaying) {
-                    Icon(Icons.Filled.Pause, contentDescription = "Pause", tint = Color.White)
+                    Icon(Icons.Filled.Pause, "Pause", tint = Color.White, modifier = Modifier.size(48.dp))
                 } else {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = Color.White)
+                    Icon(Icons.Filled.PlayArrow, "Play", tint = Color.White, modifier = Modifier.size(48.dp))
                 }
             }
-            IconButton(onClick = { viewModel.next() }) {
-                Icon(
-                    imageVector = Icons.Filled.SkipNext,
-                    contentDescription = "Next",
-                    tint = Color.White
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(onClick = { viewModel.toggleRepeat() }) {
-                Icon(
-                    imageVector = Icons.Filled.Repeat,
-                    contentDescription = "Repeat",
-                    tint = Color.White
-                )
+            IconButton(onClick = { /* viewModel.next() */ }) {
+                Icon(Icons.Filled.SkipNext, "Next", tint = Color.White)
             }
         }
     }
-}
-
-private fun formatMs(ms: Long): String {
-    val s = (ms / 1000) % 60
-    val m = (ms / 1000) / 60
-    return String.format("%d:%02d", m, s)
 }

@@ -1,15 +1,13 @@
 package com.example.musicplayer.domain.usecase
 
-import com.example.musicplayer.data.YouTubeRepository
-import com.example.musicplayer.domain.models.Video
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import com.example.musicplayer.data.MusicRepository
+import com.example.musicplayer.domain.models.Song
 import javax.inject.Inject
 
 class SearchUseCase @Inject constructor(
-    private val repository: YouTubeRepository
+    private val repository: MusicRepository
 ) {
-    fun execute(query: String): Flow<Result<List<Video>>> {
-        return repository.searchVideos(query)
+    suspend fun execute(query: String): List<Song> {
+        return repository.searchSongs(query)
     }
 }

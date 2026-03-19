@@ -8,24 +8,23 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.musicplayer.presentation.search.SearchScreen
 import com.example.musicplayer.presentation.player.PlayerScreen
+import com.example.musicplayer.presentation.player.PlayerViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
@@ -43,33 +42,27 @@ class MainActivity : ComponentActivity() {
 fun AppRoot() {
     Surface(modifier = Modifier.fillMaxSize()) {
         val navController = rememberNavController()
+        val playerViewModel: PlayerViewModel = hiltViewModel()
+        
         NavHost(navController = navController, startDestination = "player") {
-            // Home player screen (no specific video yet)
             composable("player") {
                 PlayerScreen(
-                    videoId = "",
-                    onBack = { /* no-op, root */ },
+                    viewModel = playerViewModel,
+                    onBack = { /* root */ },
                     onSearch = { navController.navigate("search") }
                 )
             }
 
             composable("search") {
                 SearchScreen(
-                    onPlayVideo = { videoId ->
-                        navController.navigate("player/$videoId") {
-                            popUpTo("player") { inclusive = false }
+                    onSongSelected = { song ->
+                        playerViewModel.playSong(song)
+                        // Go back to player screen
+                        navController.navigate("player") {
+                            popUpTo("player") { inclusive = true }
                         }
                     },
                     onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable("player/{videoId}") { backStack ->
-                val vid = backStack.arguments?.getString("videoId") ?: ""
-                PlayerScreen(
-                    videoId = vid,
-                    onBack = { navController.popBackStack() },
-                    onSearch = { navController.navigate("search") }
                 )
             }
         }

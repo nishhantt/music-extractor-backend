@@ -1,29 +1,20 @@
 package com.example.musicplayer.di
 
-import com.example.musicplayer.data.StreamExtractor
-import com.example.musicplayer.data.YouTubeRepository
-import com.example.musicplayer.data.YouTubeRepositoryImpl
-import com.example.musicplayer.data.BackendStreamExtractor
-import com.example.musicplayer.data.PlayerRepository
-import com.example.musicplayer.data.PlayerRepositoryImpl
-import dagger.Binds
+import com.example.musicplayer.data.MusicRepository
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import com.example.musicplayer.network.SaavnService
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class RepositoryModule {
-    @Binds
-    @Singleton
-    abstract fun bindYouTubeRepository(impl: YouTubeRepositoryImpl): YouTubeRepository
+object RepositoryModule {
 
-    @Binds
+    @Provides
     @Singleton
-    abstract fun bindStreamExtractor(impl: BackendStreamExtractor): StreamExtractor
-
-    @Binds
-    @Singleton
-    abstract fun bindPlayerRepository(impl: PlayerRepositoryImpl): PlayerRepository
+    fun provideMusicRepository(saavnService: SaavnService): MusicRepository {
+        return MusicRepository(saavnService)
+    }
 }
