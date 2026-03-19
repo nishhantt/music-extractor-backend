@@ -8,8 +8,11 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class YouTubeSearchService(private val client: OkHttpClient) {
+@Singleton
+class YouTubeSearchService @Inject constructor(private val client: OkHttpClient) {
 
     suspend fun searchSongs(query: String): List<Song> = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.YOUTUBE_API_KEY

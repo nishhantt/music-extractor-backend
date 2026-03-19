@@ -64,32 +64,12 @@ fun Modifier.neumorphicShadow(
     shape: androidx.compose.ui.graphics.Shape,
     elevation: Dp = 4.dp
 ): Modifier = this.drawBehind {
-    val shadowColorDark = NeumorphicDarkShadow.toArgb()
-    val glowColor = NeumorphicGlow.toArgb()
+    val shadowColorDark = NeumorphicDarkShadow.copy(alpha = 0.5f)
     
-    drawIntoCanvas { canvas ->
-        val paint = Paint()
-        val frameworkPaint = paint.asFrameworkPaint()
-        val outline = shape.createOutline(size, layoutDirection, this)
-        
-        // 1. Centered Glow (All-around)
-        frameworkPaint.color = glowColor
-        frameworkPaint.setShadowLayer(
-            elevation.toPx() * 1.5f,
-            0f,
-            0f,
-            glowColor
-        )
-        canvas.drawOutline(outline, paint)
-
-        // 2. Primary Dark Shadow (Bottom Right)
-        frameworkPaint.color = shadowColorDark
-        frameworkPaint.setShadowLayer(
-            elevation.toPx(),
-            elevation.toPx(),
-            elevation.toPx(),
-            shadowColorDark
-        )
-        canvas.drawOutline(outline, paint)
-    }
+    // Draw centered 3D border-like glow
+    drawOutline(
+        outline = shape.createOutline(size, layoutDirection, this),
+        color = NeumorphicGlow,
+        alpha = 0.3f
+    )
 }
