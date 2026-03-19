@@ -39,8 +39,8 @@ class SearchViewModel @Inject constructor(
         }
 
         searchJob = viewModelScope.launch {
-            // Debounce for 500ms as recommended to prevent rate limiting
-            delay(500)
+            // Debounce for 300ms for snappier experience while respecting rate limits
+            delay(300)
             _isLoading.value = true
             try {
                 val results = musicRepository.searchSongs(query)

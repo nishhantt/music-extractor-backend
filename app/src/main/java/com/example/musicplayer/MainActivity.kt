@@ -55,8 +55,8 @@ fun AppRoot() {
 
             composable("search") {
                 SearchScreen(
-                    onSongSelected = { song ->
-                        playerViewModel.playSong(song)
+                    onSongSelected = { song, playlist ->
+                        playerViewModel.playSong(song, playlist)
                         // Go back to player screen
                         navController.navigate("player") {
                             popUpTo("player") { inclusive = true }

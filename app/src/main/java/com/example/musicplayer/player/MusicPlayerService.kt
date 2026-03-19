@@ -43,6 +43,16 @@ class MusicPlayerService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         val player = exoPlayerManager.asPlayer()
         
+        when (intent?.action) {
+            ACTION_TOGGLE_PLAY -> if (player.isPlaying) player.pause() else player.play()
+            ACTION_NEXT -> if (player.hasNextMediaItem()) player.seekToNextMediaItem()
+            ACTION_PREV -> if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem()
+            ACTION_STOP -> {
+                player.stop()
+                stopSelf()
+            }
+        }
+
         if (mediaSession == null) {
             val mainActivityIntent = Intent(this, com.example.musicplayer.MainActivity::class.java)
             val pendingIntent = PendingIntent.getActivity(this, 0, mainActivityIntent, PendingIntent.FLAG_IMMUTABLE)

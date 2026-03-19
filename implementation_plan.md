@@ -1,4 +1,4 @@
-# Music Player Enhancements: Search, Controls, and Autoplay
+# Skibidi Music Player Enhancements: Search, Controls, and Autoplay
 
 This plan outlines the steps to complete the music player application, ensuring a seamless user experience from search to playback with full controls and autoplay functionality.
 

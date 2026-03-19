@@ -45,16 +45,18 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState(initial = PlayerUiState.Idle)
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val currentPosition by viewModel.currentPosition.collectAsState()
+    val duration = viewModel.getDuration()
     
-    // In a real app, you'd observe player state from viewModel
-    val isPlaying = state is PlayerUiState.Playing
-
     // Vinyl rotation
     val rotation = remember { mutableStateOf(0f) }
     LaunchedEffect(isPlaying) {
-        while (isActive && isPlaying) {
-            rotation.value = (rotation.value + 0.5f) % 360f
-            delay(16L)
+        if (isPlaying) {
+            while (isActive) {
+                rotation.value = (rotation.value + 0.5f) % 360f
+                delay(16L)
+            }
         }
     }
 
@@ -81,8 +83,8 @@ fun PlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(Color(0x33FFFFFF))
                 .clickable { onSearch() }
                 .padding(horizontal = 16.dp),
@@ -99,9 +101,9 @@ fun PlayerScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Search songs…",
+                    text = "Search songs, artists...",
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 14.sp
+                    fontSize = 16.sp
                 )
             }
         }
@@ -149,20 +151,22 @@ fun PlayerScreen(
             Text(
                 text = currentTitle,
                 color = Color.White,
-                fontSize = 20.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1
             )
             Text(
                 text = currentArtist,
                 color = Color.Gray,
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1
             )
             
             if (state is PlayerUiState.Loading) {
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(text = "Loading…", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                Text(text = "Buffering...", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
             }
             if (state is PlayerUiState.Error) {
                 Spacer(modifier = Modifier.height(6.dp))
@@ -175,40 +179,84 @@ fun PlayerScreen(
             }
         }
 
-        // Progress bar (Simplified for this refactor)
+        // Progress bar
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
+            val sliderValue = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+            
             Slider(
-                value = 0f,
-                onValueChange = { },
-                modifier = Modifier.fillMaxWidth()
+                value = sliderValue,
+                onValueChange = { percent ->
+                    if (duration > 0) {
+                        viewModel.seekTo((percent * duration).toLong())
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material.SliderDefaults.colors(
+                    thumbColor = Color.White,
+                    activeTrackColor = Color.White,
+                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                )
             )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatTime(currentPosition),
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = formatTime(duration),
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
         }
 
         // Bottom controls
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.Center,
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { /* viewModel.previous() */ }) {
-                Icon(Icons.Filled.SkipPrevious, "Previous", tint = Color.White)
+            IconButton(onClick = { viewModel.previous() }, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Filled.SkipPrevious, "Previous", tint = Color.White, modifier = Modifier.size(36.dp))
             }
-            IconButton(onClick = { /* viewModel.togglePlayPause() */ }, modifier = Modifier.size(72.dp)) {
-                if (isPlaying) {
-                    Icon(Icons.Filled.Pause, "Pause", tint = Color.White, modifier = Modifier.size(48.dp))
-                } else {
-                    Icon(Icons.Filled.PlayArrow, "Play", tint = Color.White, modifier = Modifier.size(48.dp))
-                }
+            
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .clickable { viewModel.togglePlayPause() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = "Play/Pause",
+                    tint = Color.Black,
+                    modifier = Modifier.size(48.dp)
+                )
             }
-            IconButton(onClick = { /* viewModel.next() */ }) {
-                Icon(Icons.Filled.SkipNext, "Next", tint = Color.White)
+            
+            IconButton(onClick = { viewModel.next() }, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Filled.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(36.dp))
             }
         }
     }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }

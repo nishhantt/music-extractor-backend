@@ -15,10 +15,12 @@
     - [ ] Create/Update search screen
     - [ ] Handle tapping search bar to open search screen
     - [ ] Display results dynamically as user types
-- [ ] Enhance Player UI and Logic [ ]
-    - [ ] Ensure Play/Pause, Forward, and Previous buttons are functional
-    - [ ] Implement Autoplay for next song
-    - [ ] Handle song selection from search results
+- [x] Enhance Player UI and Logic [x]
+    - [x] Update `PlayerViewModel` with queue and autoplay [x]
+    - [x] Update `PlayerScreen` with controls and slider [x]
+    - [x] Ensure Play/Pause, Forward, and Previous buttons are functional [x]
+    - [x] Implement Autoplay for next song [x]
+    - [x] Handle song selection from search results [x]
 - [ ] Error Checking and Bug Fixes [ ]
     - [ ] Identify and fix any existing errors
     - [ ] Verify overall app flow

@@ -31,7 +31,7 @@ import com.example.musicplayer.domain.models.Song
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
-    onSongSelected: (Song) -> Unit,
+    onSongSelected: (Song, List<Song>) -> Unit,
     onBack: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
@@ -102,7 +102,7 @@ fun SearchScreen(
             items(songs) { song ->
                 SongItem(song = song, onClick = { 
                     focusManager.clearFocus()
-                    onSongSelected(song) 
+                    onSongSelected(song, songs) 
                 })
             }
         }
