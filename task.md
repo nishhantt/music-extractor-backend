@@ -2,28 +2,10 @@
 
 - [x] Project Research and Architecture Analysis [x]
 - [x] Workspace Cleanup [x]
-    - [x] Delete heap dump (`*.hprof`)
-    - [x] Remove redundant `backend_deploy/` directory
-    - [x] Remove auxiliary/legacy documentation
 - [x] App Naming and GitHub Push [x]
-    - [x] Propose and finalize app name (**Aura Music**)
-    - [x] Push cleaned-up code to GitHub
-- [ ] Implement JioSaavn API Integration [ ]
-    - [ ] Set up API client or backend server connection
-    - [ ] Implement search functionality with real-time suggestions
-- [ ] Build Search UI [ ]
-    - [ ] Create/Update search screen
-    - [ ] Handle tapping search bar to open search screen
-    - [ ] Display results dynamically as user types
+- [x] D: Drive Migration [x]
+- [x] Implement JioSaavn API Integration [x]
+- [x] Build Search UI [x]
 - [x] Enhance Player UI and Logic [x]
-    - [x] Update `PlayerViewModel` with queue and autoplay [x]
-    - [x] Update `PlayerScreen` with controls and slider [x]
-    - [x] Ensure Play/Pause, Forward, and Previous buttons are functional [x]
-    - [x] Implement Autoplay for next song [x]
-    - [x] Handle song selection from search results [x]
-- [ ] Error Checking and Bug Fixes [ ]
-    - [ ] Identify and fix any existing errors
-    - [ ] Verify overall app flow
-- [ ] Final Verification and Walkthrough [ ]
-    - [ ] Test search, playback, and autoplay
-    - [ ] Record a demo if possible
+- [x] Error Checking and Bug Fixes [x]
+- [x] Final Verification and Walkthrough [ ]

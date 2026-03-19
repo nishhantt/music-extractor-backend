@@ -34,29 +34,8 @@ class ExoPlayerManager @Inject constructor(
 
     fun asPlayer(): ExoPlayer = player
 
-    fun playSong(song: Song) {
-        if (song.audioUrl.isBlank()) {
-            Log.e("PLAYER", "Invalid stream URL")
-            return
-        }
 
-        Log.d("PLAYER", "Playing stream: ${song.audioUrl}")
-
-        val mediaItem = MediaItem.Builder()
-            .setUri(Uri.parse(song.audioUrl))
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(song.title)
-                    .setArtist(song.artist)
-                    .setArtworkUri(Uri.parse(song.image))
-                    .build()
-            )
-            .build()
-            
-        player.setMediaItem(mediaItem)
-        player.prepare()
-        player.play()
-    }
+    fun asPlayer(): ExoPlayer = player
 
     fun play() { player.play() }
     fun pause() { player.pause() }
